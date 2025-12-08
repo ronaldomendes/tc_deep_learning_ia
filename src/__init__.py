@@ -7,7 +7,7 @@ from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
-from src.finance.controller import finance_router
+from src.financial.controller import financial_router
 from src.middleware import register_middleware
 
 tags_metadata = [
@@ -46,4 +46,4 @@ a visualization of mkdocs documentation page
 
 
 register_middleware(app)
-app.include_router(finance_router, prefix='/v1/api/finance', tags=['Finance Controller'])
+app.include_router(financial_router, prefix='/v1/api/financial', tags=['Finance Controller'])
