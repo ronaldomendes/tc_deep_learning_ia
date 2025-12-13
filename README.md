@@ -58,6 +58,4 @@ dúvida no desenvolvimento do projeto!
 ### Requisitos para a utlização em ambiente local
 - Ao utilizar a aplicação em ambiente local, será possível visualizar a documentação pelo modelo [Swagger](http://127.0.0.1:8000/documentation/swagger) e [Redoc](http://127.0.0.1:8000/documentation/redoc). Variando o domínio de acordo com o ambiente que você estiver executando.
 - Antes de realizar qualquer modificação, instalar hook do *pre-commit* ``pre-commit install``.
-- Para atualizar a documentação, basta atualizar o arquivo *mkdocs.yaml* e em seguida utilizar o comando ``mkdocs build`` para que ele seja atualizado no diretório *site*.
-- Para visualizar apenas a documentação, basta utilizar o comando: ``mkdocs serve``.
 - Para executar o projeto em ambiente local, basta utilizar o comando: ``fastapi dev src/``.
