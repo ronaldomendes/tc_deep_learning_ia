@@ -2,8 +2,14 @@
 disable=
         E1101, # no-member
         W0611, # unused-import
+        W0612, # unused-variable
         W0613, # unused-argument
         W0718, # broad-exception-caught
+        C0413, # wrong-import-position (needed for matplotlib.use)
+        R0402, # consider-using-from-import
+        R0902, # too-many-instance-attributes
+        R0913, # too-many-arguments
+        R0917, # too-many-positional-arguments
 
 # Analyse import fallback blocks. This can be used to support both Python 2 and
 # 3 compatible code, which means that the block might have code that exists
@@ -196,7 +202,17 @@ good-names=i,
            k,
            ex,
            Run,
-           _
+           _,
+           X,
+           y,
+           X_train,
+           X_val,
+           X_test,
+           X_batch,
+           y_train,
+           y_val,
+           y_test,
+           y_batch
 
 # Good variable names regexes, separated by a comma. If names match any regex,
 # they will always be accepted

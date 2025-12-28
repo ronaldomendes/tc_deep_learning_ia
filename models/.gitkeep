@@ -1,0 +1,5 @@
+# This file ensures the models directory is tracked by git
+# Trained models will be saved here:
+# - lstm_model.pt
+# - model_config.json
+# - evaluation_plot.png

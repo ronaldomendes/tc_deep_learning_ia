@@ -1,0 +1,14 @@
+{
+  "input_size": 6,
+  "hidden_size_1": 128,
+  "hidden_size_2": 64,
+  "output_size": 5,
+  "num_layers": 1,
+  "dropout": 0.2,
+  "training": {
+    "learning_rate": 0.001,
+    "batch_size": 32,
+    "epochs_trained": 36,
+    "best_val_loss": 0.0014247607739110077
+  }
+}

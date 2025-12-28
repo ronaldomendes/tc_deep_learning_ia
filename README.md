@@ -1,61 +1,195 @@
 # Tech Challenge 04 - Deep Learning e IA
 
-### O problema
-Seu desafio é criar um modelo preditivo de redes neurais Long Short Term Memory (LSTM) para predizer o valor de 
-fechamento da bolsa de valores de uma empresa à sua escolha e realizar toda a pipeline de desenvolvimento, 
-desde a criação do modelo preditivo até o deploy do modelo em uma API que permita a previsão de preços de ações.
+Modelo preditivo LSTM (Long Short-Term Memory) para predizer o valor de fechamento de ações da Klabin (KLBN3.SA) com API REST.
 
-Seu Tech Challenge precisa seguir os seguintes requisitos:
+## Arquitetura do Projeto
 
-1. **Coleta e Pré-processamento dos Dados**
-- **Coleta de Dados:** utilize um dataset de preços históricos de ações, como o Yahoo Finance ou qualquer outro dataset 
-financeiro disponível (dica: utilize a biblioteca **[yfinance](https://ranaroussi.github.io/yfinance/reference/index.html)**). Veja um exemplo a seguir:
-```python
-import yfinance as yf 
-# Especifique o símbolo da empresa que você vai trabalhar 
-# Configure data de início e fim da sua base 
-
-symbol = 'DIS' 
-start_date = '2018-01-01' 
-end_date = '2024-07-20' 
-
-# Use a função download para obter os dados 
-df = yf.download(symbol, start=start_date, end=end_date)
+```
+tc_deep_learning_ia/
+├── data/
+│   ├── KLBN_data.csv          # Dados históricos
+│   └── scaler.pkl             # Scaler para normalização
+├── models/
+│   ├── lstm_model.pt          # Modelo treinado
+│   ├── model_config.json      # Configurações do modelo
+│   └── evaluation_plot.png    # Gráfico de avaliação
+├── src/
+│   ├── __init__.py            # App FastAPI
+│   ├── middleware.py          # CORS, logging e monitoramento
+│   ├── financial/
+│   │   ├── controller.py      # Rotas da API
+│   │   ├── service.py         # Lógica de negócio
+│   │   └── preprocessing.py   # Pré-processamento de dados
+│   └── model/
+│       ├── lstm.py            # Arquitetura LSTM
+│       ├── train.py           # Treinamento
+│       └── evaluate.py        # Avaliação (MAE, RMSE, MAPE)
+├── Dockerfile
+├── docker-compose.yml
+└── requirements.txt
 ```
 
-2. **Desenvolvimento do Modelo LSTM**
-- **Construção do Modelo:** implemente um modelo de deep learning utilizando LSTM para capturar padrões temporais nos 
-dados de preços das ações.
-- **Treinamento:** treine o modelo utilizando uma parte dos dados e ajuste os hiperparâmetros para otimizar o desempenho.
-- **Avaliação:** avalie o modelo utilizando dados de validação e utilize métricas como MAE (Mean Absolute Error), 
-RMSE (Root Mean Square Error), MAPE (Erro Percentual Absoluto Médio) ou outra métrica apropriada para medir 
-a precisão das previsões.
+## Modelo LSTM
 
-3. **Salvamento e Exportação do Modelo**
-- **Salvar o Modelo:** após atingir um desempenho satisfatório, salve o modelo treinado em um formato que 
-possa ser utilizado para inferência.
+### Arquitetura
+```
+Input (60 dias, 6 features) → LSTM(128) → Dropout(0.2) → LSTM(64) → Dropout(0.2) → Linear(5)
+```
 
-4. **Deploy do Modelo**
-- **Criação da API:** desenvolva uma API RESTful utilizando Flask ou FastAPI para servir o modelo. A API deve permitir 
-que o usuário forneça dados históricos de preços e receba previsões dos preços futuros.
+### Features utilizadas
+- **Close**: Preço de fechamento
+- **Volume**: Volume negociado
+- **SMA_7**: Média móvel de 7 dias
+- **SMA_21**: Média móvel de 21 dias
+- **Returns**: Retorno percentual diário
+- **Volatility**: Volatilidade (desvio padrão rolling)
 
-5. **Escalabilidade e Monitoramento**
-- **Monitoramento:** configure ferramentas de monitoramento para rastrear a performance do modelo em produção, 
-incluindo tempo de resposta e utilização de recursos.
+### Hiperparâmetros
+- Janela de entrada: 60 dias
+- Horizonte de predição: 5 dias
+- Batch size: 32
+- Learning rate: 0.001
+- Early stopping: patience=10
 
-**Entregáveis:**
-- Código-fonte do modelo LSTM no seu repositório do GIT + documentação do projeto.
-- Scripts ou contêineres Docker para deploy da API.
-- Link para a API em produção, caso tenha sido deployada em um ambiente de nuvem.
-- Vídeo mostrando e explicando todo o funcionamento da API.
+## Instalação
 
-Este desafio permitirá que você demonstre habilidades avançadas em deep learning, especificamente no uso de LSTM para 
-séries temporais, bem como em práticas de deploy em ambientes de produção. Boa sorte e conte conosco caso tenha alguma 
-dúvida no desenvolvimento do projeto!
+### Pré-requisitos
+- Python 3.11+
+- pip
 
----
+### Instalação Local
 
-### Requisitos para a utlização em ambiente local
-- Ao utilizar a aplicação em ambiente local, será possível visualizar a documentação pelo modelo [Swagger](http://127.0.0.1:8000/documentation/swagger) e [Redoc](http://127.0.0.1:8000/documentation/redoc). Variando o domínio de acordo com o ambiente que você estiver executando.
-- Antes de realizar qualquer modificação, instalar hook do *pre-commit* ``pre-commit install``.
-- Para executar o projeto em ambiente local, basta utilizar o comando: ``fastapi dev src/``.
+```bash
+# Clonar repositório
+git clone <repo-url>
+cd tc_deep_learning_ia
+
+# Criar ambiente virtual
+python -m venv venv
+
+# Ativar ambiente (Windows)
+.\venv\Scripts\activate
+
+# Ativar ambiente (Linux/Mac)
+source venv/bin/activate
+
+# Instalar dependências
+pip install -r requirements.txt
+
+# Instalar hooks pre-commit
+pre-commit install
+```
+
+### Instalação com Docker
+
+```bash
+# Build e execução
+docker-compose up --build
+
+# Ou apenas build
+docker build -t lstm-api .
+docker run -p 8000:8000 -v ./data:/app/data -v ./models:/app/models lstm-api
+```
+
+## Execução
+
+### Local
+
+```bash
+# Modo desenvolvimento
+uvicorn src:app --reload --host 127.0.0.1 --port 8000
+
+# Ou usando fastapi-cli (pode ter problemas de encoding no Windows)
+fastapi dev src/
+```
+
+### Docker
+
+```bash
+docker-compose up
+```
+
+A API estará disponível em: http://127.0.0.1:8000
+
+## Documentação da API
+
+- **Swagger UI**: http://127.0.0.1:8000/documentation/swagger
+- **ReDoc**: http://127.0.0.1:8000/documentation/redoc
+- **OpenAPI JSON**: http://127.0.0.1:8000/documentation/openapi.json
+
+## Endpoints
+
+### Financial Controller
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| POST | `/v1/api/financial/save-data` | Baixa dados do Yahoo Finance e salva em CSV |
+| POST | `/v1/api/financial/preprocessing-data` | Pré-processa os dados para treinamento |
+| POST | `/v1/api/financial/train` | Treina o modelo LSTM |
+| POST | `/v1/api/financial/predict` | Faz predição dos próximos 5 dias |
+| GET | `/v1/api/financial/metrics` | Retorna métricas do modelo (MAE, RMSE, MAPE) |
+
+### Monitoramento
+
+| Método | Endpoint | Descrição |
+|--------|----------|-----------|
+| GET | `/health` | Health check |
+| GET | `/metrics` | Métricas da API (uptime, requests, response times) |
+
+## Fluxo de Uso
+
+### 1. Coletar dados
+```bash
+curl -X POST http://127.0.0.1:8000/v1/api/financial/save-data
+```
+
+### 2. Pré-processar dados
+```bash
+curl -X POST http://127.0.0.1:8000/v1/api/financial/preprocessing-data
+```
+
+### 3. Treinar modelo
+```bash
+curl -X POST http://127.0.0.1:8000/v1/api/financial/train
+```
+
+### 4. Fazer predição
+```bash
+curl -X POST http://127.0.0.1:8000/v1/api/financial/predict
+```
+
+### Exemplo de resposta do endpoint /predict
+```json
+{
+  "predictions": [
+    {"date": "2025-11-03", "predicted_close": 4.52},
+    {"date": "2025-11-04", "predicted_close": 4.48},
+    {"date": "2025-11-05", "predicted_close": 4.55},
+    {"date": "2025-11-06", "predicted_close": 4.51},
+    {"date": "2025-11-07", "predicted_close": 4.49}
+  ],
+  "model_metrics": {
+    "mae": 0.12,
+    "rmse": 0.15,
+    "mape": 2.8
+  },
+  "last_known_date": "2025-10-31",
+  "currency": "BRL"
+}
+```
+
+## Métricas de Avaliação
+
+- **MAE (Mean Absolute Error)**: Erro médio absoluto em R$
+- **RMSE (Root Mean Square Error)**: Raiz do erro quadrático médio em R$
+- **MAPE (Mean Absolute Percentage Error)**: Erro percentual médio (%)
+
+## Tecnologias Utilizadas
+
+- **FastAPI**: Framework web assíncrono
+- **PyTorch**: Deep learning framework
+- **yfinance**: Download de dados financeiros
+- **Pandas/NumPy**: Manipulação de dados
+- **scikit-learn**: Normalização (MinMaxScaler)
+- **Matplotlib**: Visualizações
+- **Docker**: Containerização
