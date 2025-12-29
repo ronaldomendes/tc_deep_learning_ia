@@ -1,0 +1,38 @@
+site_name: Tech Challenge 04 - Deep Learning e IA
+plugins:
+  - search
+
+nav:
+  - Início: index.md
+  - Instalação: install.md
+  - Documentação: api_docs.md
+  - Fluxo de uso: flow.md
+  - Sobre: about.md
+
+markdown_extensions:
+  - pymdownx.tasklist
+  - pymdownx.emoji
+  - pymdownx.mark
+  - pymdownx.tilde
+  - pymdownx.highlight
+  - pymdownx.superfences
+
+theme:
+  language: pt-br
+  name: material
+  font:
+    text: Roboto
+    code: Red Hat Mono
+  palette:
+    - scheme: default
+      toggle:
+        icon: material/weather-night
+        name: Light mode
+      primary: blue
+      accent: deep orange
+    - scheme: slate
+      toggle:
+        icon: material/weather-sunny
+        name: Dark mode
+      primary: deep purple
+      accent: green

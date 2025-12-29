@@ -3,12 +3,11 @@ Main class of the application.
 All configuration below is used for Controller additions, cors configuration,
 Swagger and Redoc headers, etc.
 """
-from fastapi import FastAPI, Request
-from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
+from fastapi import FastAPI
 
 from src.financial.controller import financial_router
 from src.middleware import register_middleware
+from src.mkdocs import serve_docs
 
 tags_metadata = [
     {
@@ -29,21 +28,6 @@ app = FastAPI(
     openapi_tags=tags_metadata
 )
 
-"""
-I'm adding this configuration below to make it possible 
-a visualization of mkdocs documentation page
-"""
-# app.mount("/site", StaticFiles(directory="site"), name="docs")
-# app.mount("/assets", StaticFiles(directory='site/assets'), name='assets')
-# app.mount("/search", StaticFiles(directory='site/search'), name='search')
-# templates = Jinja2Templates(directory="site")
-
-
-# @app.get("/", include_in_schema=False)
-# async def mkdocs(request: Request):
-#     """Exposing api documentation and excluding from swagger and redoc"""
-#     return templates.TemplateResponse(name="index.html", request=request)
-
-
 register_middleware(app)
 app.include_router(financial_router, prefix='/v1/api/financial', tags=['Finance Controller'])
+serve_docs(app)
