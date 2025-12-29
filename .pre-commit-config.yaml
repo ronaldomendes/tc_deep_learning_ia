@@ -17,7 +17,7 @@ repos:
     hooks:
       - id: requirements
         name: requirements
-        entry: bash -c 'venv/*/pip freeze > requirements.txt; git add requirements.txt'
+        entry: bash -c '*venv/*/pip freeze > requirements.txt; git add requirements.txt'
         language: system
         pass_filenames: false
         stages: [ pre-commit ]
