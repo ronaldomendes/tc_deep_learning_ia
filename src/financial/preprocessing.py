@@ -10,8 +10,7 @@ import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 
-DATA_PATH = 'data/KLBN_data.csv'
-SCALER_PATH = 'data/scaler.pkl'
+from src.utils import get_data_path, get_scaler_path, ensure_dirs
 
 # Hyperparameters
 SEQUENCE_LENGTH = 60  # Days of historical data to use as input
@@ -24,13 +23,16 @@ TEST_RATIO = 0.15
 class DataPreprocessor:
     """Class responsible for preprocessing financial data for LSTM model"""
 
-    def __init__(self):
+    def __init__(self, ticker: str = "KLBN3.SA"):
+        self.ticker = ticker
+        self.data_path = get_data_path(ticker)
+        self.scaler_path = get_scaler_path(ticker)
         self.scaler = MinMaxScaler(feature_range=(0, 1))
         self.feature_columns = ['Close', 'Volume', 'SMA_7', 'SMA_21', 'Returns', 'Volatility']
 
     def load_data(self) -> pd.DataFrame:
         """Load and clean the CSV data"""
-        df = pd.read_csv(DATA_PATH, skiprows=2)
+        df = pd.read_csv(self.data_path, skiprows=2)
         df.columns = ['Date', 'Close', 'High', 'Low', 'Open', 'Volume']
         df['Date'] = pd.to_datetime(df['Date'])
         df = df.sort_values('Date').reset_index(drop=True)
@@ -76,15 +78,15 @@ class DataPreprocessor:
 
     def save_scaler(self):
         """Save the fitted scaler for later use in inference"""
-        os.makedirs(os.path.dirname(SCALER_PATH), exist_ok=True)
-        joblib.dump(self.scaler, SCALER_PATH)
+        ensure_dirs(self.ticker)
+        joblib.dump(self.scaler, self.scaler_path)
 
     def load_scaler(self):
         """Load a previously saved scaler"""
-        if os.path.exists(SCALER_PATH):
-            self.scaler = joblib.load(SCALER_PATH)
+        if os.path.exists(self.scaler_path):
+            self.scaler = joblib.load(self.scaler_path)
         else:
-            raise FileNotFoundError(f"Scaler not found at {SCALER_PATH}")
+            raise FileNotFoundError(f"Scaler not found at {self.scaler_path}")
 
     def create_sequences(
         self, data: np.ndarray

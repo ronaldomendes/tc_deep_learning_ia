@@ -12,9 +12,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from src.model.lstm import LSTMModel
 from src.financial.preprocessing import DataPreprocessor
-
-MODEL_PATH = 'models/lstm_model.pt'
-CONFIG_PATH = 'models/model_config.json'
+from src.utils import get_model_path, get_config_path, ensure_dirs
 
 
 class EarlyStopping:
@@ -45,12 +43,16 @@ class ModelTrainer:
 
     def __init__(
         self,
+        ticker: str = "KLBN3.SA",
         learning_rate: float = 0.001,
         batch_size: int = 32,
         epochs: int = 100,
         patience: int = 10,
         device: Optional[str] = None
     ):
+        self.ticker = ticker
+        self.model_path = get_model_path(ticker)
+        self.config_path = get_config_path(ticker)
         self.learning_rate = learning_rate
         self.batch_size = batch_size
         self.epochs = epochs
@@ -213,13 +215,14 @@ class ModelTrainer:
 
     def save_model(self):
         """Save the trained model and configuration"""
-        os.makedirs(os.path.dirname(MODEL_PATH), exist_ok=True)
+        ensure_dirs(self.ticker)
 
         # Save model weights
-        torch.save(self.model.state_dict(), MODEL_PATH)
+        torch.save(self.model.state_dict(), self.model_path)
 
         # Save configuration
         config = self.model.get_config()
+        config['ticker'] = self.ticker
         config['training'] = {
             'learning_rate': self.learning_rate,
             'batch_size': self.batch_size,
@@ -227,16 +230,16 @@ class ModelTrainer:
             'best_val_loss': min(self.val_losses) if self.val_losses else None
         }
 
-        with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
+        with open(self.config_path, 'w', encoding='utf-8') as f:
             json.dump(config, f, indent=2)
 
-        print(f"Model saved to {MODEL_PATH}")
-        print(f"Config saved to {CONFIG_PATH}")
+        print(f"Model saved to {self.model_path}")
+        print(f"Config saved to {self.config_path}")
 
     def load_model(self) -> LSTMModel:
         """Load a trained model"""
         # Load config
-        with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
+        with open(self.config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
 
         # Create model with saved config
@@ -250,7 +253,7 @@ class ModelTrainer:
         ).to(self.device)
 
         # Load weights
-        state_dict = torch.load(MODEL_PATH, map_location=self.device, weights_only=True)
+        state_dict = torch.load(self.model_path, map_location=self.device, weights_only=True)
         self.model.load_state_dict(state_dict)
         self.model.eval()
 
@@ -279,12 +282,12 @@ class ModelTrainer:
         return prediction.cpu().numpy().squeeze()
 
 
-def train_model():
+def train_model(ticker: str = "KLBN3.SA"):
     """Convenience function to train the model from scratch"""
-    preprocessor = DataPreprocessor()
+    preprocessor = DataPreprocessor(ticker=ticker)
     data = preprocessor.preprocess()
 
-    trainer = ModelTrainer()
+    trainer = ModelTrainer(ticker=ticker)
     results = trainer.train(data)
 
     return results

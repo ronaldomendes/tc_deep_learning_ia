@@ -11,63 +11,80 @@ from fastapi.exceptions import HTTPException
 from fastapi.responses import JSONResponse
 
 from src.financial.preprocessing import DataPreprocessor, PREDICTION_HORIZON
-from src.model.train import ModelTrainer, MODEL_PATH
+from src.model.train import ModelTrainer
 from src.model.evaluate import ModelEvaluator
-
-PATH = 'data/KLBN_data.csv'
+from src.utils import (
+    get_data_path, get_model_path, ensure_dirs,
+    list_available_tickers, validate_ticker
+)
 
 
 class FinancialService:
     """Financial Service for managing all data from yfinance"""
 
-    def __init__(self):
-        self.preprocessor = DataPreprocessor()
-        self.trainer = ModelTrainer()
-        self.evaluator = ModelEvaluator()
+    async def save_financial_data(self, ticker: str):
+        """
+        Download and save financial data for any ticker from Yahoo Finance.
+        """
+        # Validate ticker format
+        if not validate_ticker(ticker):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f'Invalid ticker format: {ticker}. Use format like KLBN3.SA or AAPL'
+            )
 
-    async def save_financial_data(self):
-        """
-        Initially this service is only getting data from Klabin (KLBN3.SA).
-        In the future this service can get all data dynamically.
-        :return:
-        """
-        symbol = 'KLBN3.SA'
+        data_path = get_data_path(ticker)
         start_date = '2020-01-01'
-        end_date = '2025-10-31'
+        end_date = datetime.now().strftime('%Y-%m-%d')
 
         try:
-            if os.path.exists(PATH):
+            if os.path.exists(data_path):
                 return JSONResponse(
-                    content={'message': 'File already saved.'},
+                    content={
+                        'message': f'Data file for {ticker} already exists.',
+                        'ticker': ticker,
+                        'path': data_path
+                    },
                     status_code=status.HTTP_208_ALREADY_REPORTED
                 )
 
-            df = yf.download(symbol, start=start_date, end=end_date, auto_adjust=True)
+            ensure_dirs(ticker)
+            df = yf.download(ticker, start=start_date, end=end_date, auto_adjust=True)
 
             if df.empty:
                 return JSONResponse(
-                    content={'message': 'Empty dataset! Check all parameters before try again.'},
-                    status_code=status.HTTP_422_UNPROCESSABLE_CONTENT
+                    content={
+                        'message': f'No data found for {ticker}. Check if ticker is valid.',
+                        'ticker': ticker
+                    },
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY
                 )
 
-            df.to_csv(PATH)
+            df.to_csv(data_path)
             return JSONResponse(
-                content={'message': 'File saved successfully.'},
+                content={
+                    'message': f'Data for {ticker} saved successfully.',
+                    'ticker': ticker,
+                    'path': data_path,
+                    'records': len(df)
+                },
                 status_code=status.HTTP_201_CREATED
             )
         except Exception as e:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
-    async def preprocessing_data(self):
+    async def preprocessing_data(self, ticker: str):
         """
         Preprocess financial data for LSTM model training
         Creates features, normalizes data and splits into train/val/test sets
         """
         try:
-            result = self.preprocessor.preprocess()
+            preprocessor = DataPreprocessor(ticker=ticker)
+            result = preprocessor.preprocess()
             return JSONResponse(
                 content={
-                    'message': 'Data preprocessed successfully.',
+                    'message': f'Data for {ticker} preprocessed successfully.',
+                    'ticker': ticker,
                     'train_samples': len(result['X_train']),
                     'val_samples': len(result['X_val']),
                     'test_samples': len(result['X_test']),
@@ -80,63 +97,75 @@ class FinancialService:
         except FileNotFoundError as e:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail='Data file not found. Please call /save-data first.'
+                detail=f'Data file for {ticker} not found. Please call /{ticker}/save-data first.'
             ) from e
         except Exception as e:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
-    async def train_model(self):
-        """Train the LSTM model"""
+    async def train_model(self, ticker: str):
+        """Train the LSTM model for a specific ticker"""
         try:
+            preprocessor = DataPreprocessor(ticker=ticker)
+            trainer = ModelTrainer(ticker=ticker)
+
             # Preprocess data
-            data = self.preprocessor.preprocess()
+            data = preprocessor.preprocess()
 
             # Train model
-            results = self.trainer.train(data)
+            results = trainer.train(data)
 
             return JSONResponse(
                 content={
-                    'message': 'Model trained successfully.',
+                    'message': f'Model for {ticker} trained successfully.',
+                    'ticker': ticker,
                     'epochs_trained': results['epochs_trained'],
                     'best_val_loss': round(results['best_val_loss'], 6),
                     'device': results['device'],
-                    'model_path': MODEL_PATH
+                    'model_path': get_model_path(ticker)
                 },
                 status_code=status.HTTP_200_OK
             )
         except FileNotFoundError as e:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail='Data file not found. Please call /save-data first.'
+                detail=f'Data file for {ticker} not found. Please call /{ticker}/save-data first.'
             ) from e
         except Exception as e:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
-    async def predict(self):
+    async def predict(self, ticker: str):
         """
         Make predictions for the next 5 days using the trained model
         """
         try:
+            model_path = get_model_path(ticker)
+            preprocessor = DataPreprocessor(ticker=ticker)
+            trainer = ModelTrainer(ticker=ticker)
+            evaluator = ModelEvaluator(ticker=ticker)
+
             # Check if model exists
-            if not os.path.exists(MODEL_PATH):
+            if not os.path.exists(model_path):
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail='Model not found. Please train the model first using /train.'
+                    detail=(
+                        f'Model for {ticker} not found. '
+                        f'Please train the model first using /{ticker}/train.'
+                    )
                 )
 
             # Get latest sequence for prediction
-            sequence = self.preprocessor.get_latest_sequence()
+            sequence = preprocessor.get_latest_sequence()
 
             # Make prediction (normalized)
-            predictions_normalized = self.trainer.predict(sequence)
+            predictions_normalized = trainer.predict(sequence)
 
             # Convert back to original scale
-            predictions_original = self.preprocessor.inverse_transform_predictions(
+            predictions_original = preprocessor.inverse_transform_predictions(
                 predictions_normalized
             )
 
             # Generate dates for predictions (next business days)
-            df = self.preprocessor.load_data()
+            df = preprocessor.load_data()
             last_date = df['Date'].max()
             prediction_dates = pd.bdate_range(
                 start=last_date + timedelta(days=1),
@@ -153,10 +182,11 @@ class FinancialService:
             ]
 
             # Get model metrics
-            metrics = self.evaluator.get_metrics_summary()
+            metrics = evaluator.get_metrics_summary()
 
             return JSONResponse(
                 content={
+                    'ticker': ticker,
                     'predictions': predictions_list,
                     'model_metrics': {
                         'mae': metrics['mae'],
@@ -176,19 +206,26 @@ class FinancialService:
         except Exception as e:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
 
-    async def get_metrics(self):
+    async def get_metrics(self, ticker: str):
         """Get evaluation metrics for the trained model"""
         try:
-            if not os.path.exists(MODEL_PATH):
+            model_path = get_model_path(ticker)
+            evaluator = ModelEvaluator(ticker=ticker)
+
+            if not os.path.exists(model_path):
                 raise HTTPException(
                     status_code=status.HTTP_404_NOT_FOUND,
-                    detail='Model not found. Please train the model first using /train.'
+                    detail=(
+                        f'Model for {ticker} not found. '
+                        f'Please train the model first using /{ticker}/train.'
+                    )
                 )
 
-            metrics = self.evaluator.get_metrics_summary()
+            metrics = evaluator.get_metrics_summary()
 
             return JSONResponse(
                 content={
+                    'ticker': ticker,
                     'metrics': {
                         'mae': metrics['mae'],
                         'rmse': metrics['rmse'],
@@ -196,6 +233,20 @@ class FinancialService:
                     },
                     'test_samples': metrics['test_samples'],
                     'interpretation': metrics['interpretation']
+                },
+                status_code=status.HTTP_200_OK
+            )
+        except Exception as e:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)) from e
+
+    async def list_tickers(self):
+        """List all tickers with trained models"""
+        try:
+            tickers = list_available_tickers()
+            return JSONResponse(
+                content={
+                    'tickers': tickers,
+                    'count': len(tickers)
                 },
                 status_code=status.HTTP_200_OK
             )

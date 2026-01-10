@@ -13,18 +13,19 @@ import torch
 from torch.utils.data import DataLoader, TensorDataset
 
 from src.model.lstm import LSTMModel
-from src.model.train import ModelTrainer, MODEL_PATH, CONFIG_PATH
+from src.model.train import ModelTrainer
 from src.financial.preprocessing import DataPreprocessor
-
-PLOTS_PATH = 'models/evaluation_plot.png'
+from src.utils import get_plot_path, ensure_dirs
 
 
 class ModelEvaluator:
     """Class responsible for evaluating the LSTM model"""
 
-    def __init__(self):
-        self.trainer = ModelTrainer()
-        self.preprocessor = DataPreprocessor()
+    def __init__(self, ticker: str = "KLBN3.SA"):
+        self.ticker = ticker
+        self.plot_path = get_plot_path(ticker)
+        self.trainer = ModelTrainer(ticker=ticker)
+        self.preprocessor = DataPreprocessor(ticker=ticker)
 
     def calculate_mae(self, y_true: np.ndarray, y_pred: np.ndarray) -> float:
         """Calculate Mean Absolute Error"""
@@ -123,7 +124,7 @@ class ModelEvaluator:
         Returns:
             Path to saved plot
         """
-        os.makedirs(os.path.dirname(PLOTS_PATH), exist_ok=True)
+        ensure_dirs(self.ticker)
 
         # Take first prediction day for comparison
         y_true_first = y_true[:num_samples, 0]
@@ -175,11 +176,11 @@ class ModelEvaluator:
         axes[1, 1].grid(True, alpha=0.3)
 
         plt.tight_layout()
-        plt.savefig(PLOTS_PATH, dpi=150, bbox_inches='tight')
+        plt.savefig(self.plot_path, dpi=150, bbox_inches='tight')
         plt.close()
 
-        print(f"Evaluation plot saved to {PLOTS_PATH}")
-        return PLOTS_PATH
+        print(f"Evaluation plot saved to {self.plot_path}")
+        return self.plot_path
 
     def get_metrics_summary(self) -> dict:
         """Get a summary of model metrics"""
@@ -200,13 +201,13 @@ class ModelEvaluator:
         return summary
 
 
-def evaluate_model():
+def evaluate_model(ticker: str = "KLBN3.SA"):
     """Convenience function to evaluate the model"""
-    evaluator = ModelEvaluator()
+    evaluator = ModelEvaluator(ticker=ticker)
     metrics = evaluator.evaluate()
 
     print("\n" + "=" * 50)
-    print("MODEL EVALUATION RESULTS")
+    print(f"MODEL EVALUATION RESULTS - {ticker}")
     print("=" * 50)
     print(f"MAE:  R$ {metrics['mae']:.4f}")
     print(f"RMSE: R$ {metrics['rmse']:.4f}")

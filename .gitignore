@@ -52,6 +52,12 @@ coverage.xml
 .pytest_cache/
 cover/
 
+# Data
+/data
+
+# Models
+/models
+
 # Translations
 *.mo
 *.pot
