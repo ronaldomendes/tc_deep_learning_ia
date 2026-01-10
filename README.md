@@ -23,6 +23,7 @@ tc_deep_learning_ia/
 ├── src/
 │   ├── __init__.py            # App FastAPI
 │   ├── middleware.py          # CORS, logging e monitoramento
+│   ├── mkdocs.py              # Documentação MKDocs
 │   ├── utils.py               # Utilitários para paths dinâmicos
 │   ├── financial/
 │   │   ├── controller.py      # Rotas da API (/{ticker}/...)

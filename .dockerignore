@@ -48,8 +48,8 @@ Thumbs.db
 # Documentation
 *.md
 !README.md
-docs/
-site/
+#docs/
+#site/
 
 # Temporary files
 tmp/

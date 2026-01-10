@@ -3,7 +3,7 @@ repos:
     hooks:
       - id: pylint
         name: pylint
-        entry: venv/Scripts/pylint.exe
+        entry: pylint
         language: system
         types: [ python ]
         args:
@@ -17,7 +17,7 @@ repos:
     hooks:
       - id: requirements
         name: requirements
-        entry: bash -c 'venv/Scripts/pip freeze > requirements.txt; git add requirements.txt'
+        entry: bash -c '(.venv/*/pip freeze || venv/*/pip freeze || .env/*/pip freeze || env/*/pip freeze) > requirements.txt && git add requirements.txt'
         language: system
         pass_filenames: false
         stages: [ pre-commit ]
